@@ -17,7 +17,7 @@ export const SettingsModel: React.FC = () => {
     {
       key: "size",
       header: "Size",
-      render: (row) => `${row.size.toLocaleString()} MB`,
+      render: (row) => (row.size ? `${row.size.toLocaleString()} MB` : "API"),
     },
     { key: "company", header: "Company" },
     { key: "downloaded", header: "Downloaded" },
@@ -71,23 +71,44 @@ export const SettingsModel: React.FC = () => {
   return (
     <div>
       <p>
-        Select the model you want to use for your chat. The larger the model,
-        the more powerful the chat, but the slower it will be - and the more
-        memory it will use. Clippy uses models in the GGUF format.{" "}
-        <a
-          href="https://github.com/felixrieseberg/clippy?tab=readme-ov-file#downloading-more-models"
-          target="_blank"
-        >
-          More information.
-        </a>
+        Select the model you want to use for your chat. You can either <strong>self-host</strong> a model (run it locally on your machine) or use an <strong>API-based</strong> model (like Google Gemini).
       </p>
+
+      <div
+        className="sunken-panel"
+        style={{ padding: "10px", marginBottom: "15px" }}
+      >
+        <div className="field-row-stacked">
+          <label htmlFor="gemini-api-key">Gemini API Key (API-based)</label>
+          <input
+            id="gemini-api-key"
+            type="password"
+            placeholder="Enter your Gemini API key..."
+            value={settings.geminiApiKey || ""}
+            onChange={(e) =>
+              clippyApi.setState("settings.geminiApiKey", e.target.value)
+            }
+          />
+        </div>
+        <p style={{ fontSize: "11px", marginTop: "5px" }}>
+          Required for Gemini models. You can get a key from the{" "}
+          <a href="https://aistudio.google.com/" target="_blank">
+            Google AI Studio
+          </a>.
+        </p>
+      </div>
+
+      <div style={{ marginBottom: "10px" }}>
+        <strong>Available Models:</strong>
+      </div>
 
       <button
         style={{ marginBottom: 10 }}
         onClick={() => clippyApi.addModelFromFile()}
       >
-        Add model from file
+        Add local model from file (.gguf)
       </button>
+
       <TableView
         columns={columns}
         data={data}
@@ -117,7 +138,7 @@ export const SettingsModel: React.FC = () => {
           )}
 
           <div style={{ marginTop: "15px", display: "flex", gap: "10px" }}>
-            {!selectedModel.downloaded ? (
+            {!selectedModel.downloaded && !selectedModel.name.startsWith("Gemini") ? (
               <button disabled={isDownloading} onClick={handleDownload}>
                 Download Model
               </button>
@@ -131,9 +152,11 @@ export const SettingsModel: React.FC = () => {
                     ? "Clippy uses this model"
                     : "Make Clippy use this model"}
                 </button>
-                <button onClick={handleDeleteOrRemove}>
-                  {selectedModel?.imported ? "Remove" : "Delete"} Model
-                </button>
+                {!selectedModel.name.startsWith("Gemini") && (
+                  <button onClick={handleDeleteOrRemove}>
+                    {selectedModel?.imported ? "Remove" : "Delete"} Model
+                  </button>
+                )}
               </>
             )}
           </div>

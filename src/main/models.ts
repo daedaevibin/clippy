@@ -247,6 +247,10 @@ class ModelManager {
    * @returns
    */
   public getIsModelDownloaded(model: ManagedModel | Model): boolean {
+    if (model.name.startsWith("Gemini")) {
+      return true;
+    }
+
     if (getDebugManager().store.get("simulateNoModelsDownloaded")) {
       return false;
     }
@@ -432,6 +436,9 @@ export function isModelOnDisk(model: ManagedModel | Model): boolean {
  * @returns {string}
  */
 export function getModelPath(model: Model): string {
+  if (!model.url) {
+    return "";
+  }
   return path.join(app.getPath("userData"), "models", getModelFileName(model));
 }
 
@@ -442,5 +449,8 @@ export function getModelPath(model: Model): string {
  * @returns {string}
  */
 export function getModelFileName(model: Model): string {
+  if (!model.url) {
+    return "";
+  }
   return path.basename(new URL(model.url).pathname);
 }

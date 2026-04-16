@@ -4,7 +4,8 @@ import { Message } from "./Message";
 import { ChatInput } from "./ChatInput";
 import { ANIMATION_KEYS_BRACKETS } from "../clippy-animation-helpers";
 import { useChat } from "../contexts/ChatContext";
-import { electronAi } from "../clippyApi";
+import { clippyApi, electronAi } from "../clippyApi";
+import { useSharedState } from "../contexts/SharedStateContext";
 
 export type ChatProps = {
   style?: React.CSSProperties;
@@ -13,6 +14,7 @@ export type ChatProps = {
 export function Chat({ style }: ChatProps) {
   const { setAnimationKey, setStatus, status, messages, addMessage } =
     useChat();
+  const { settings } = useSharedState();
   const [streamingMessageContent, setStreamingMessageContent] =
     useState<string>("");
   const [lastRequestUUID, setLastRequestUUID] = useState<string>(
@@ -20,6 +22,10 @@ export function Chat({ style }: ChatProps) {
   );
 
   const handleAbortMessage = () => {
+    if (settings.selectedModel?.startsWith("Gemini")) {
+      // Abort for Gemini not implemented in this simple version
+      return;
+    }
     electronAi.abortRequest(lastRequestUUID);
   };
 
@@ -38,6 +44,11 @@ export function Chat({ style }: ChatProps) {
     await addMessage(userMessage);
     setStreamingMessageContent("");
     setStatus("thinking");
+
+    if (settings.selectedModel?.startsWith("Gemini")) {
+      handleGeminiSendMessage(message);
+      return;
+    }
 
     try {
       const requestUUID = crypto.randomUUID();
@@ -91,6 +102,73 @@ export function Chat({ style }: ChatProps) {
       setStreamingMessageContent("");
       setStatus("idle");
     }
+  };
+
+  const handleGeminiSendMessage = (message: string) => {
+    let fullContent = "";
+    let filteredContent = "";
+    let hasSetAnimationKey = false;
+
+    const gemini = clippyApi.geminiPromptStreaming({
+      model: settings.selectedModel || "Gemini 2.0 Flash",
+      messages: [
+        ...messages.map((m) => ({
+          role: m.sender === "clippy" ? "assistant" : "user",
+          content: m.content,
+        })),
+        { role: "user", content: message },
+      ],
+      systemPrompt: settings.systemPrompt || "",
+      temperature: settings.temperature || 0.7,
+    });
+
+    gemini.onChunk((chunk) => {
+      if (fullContent === "") {
+        setStatus("responding");
+      }
+
+      if (!hasSetAnimationKey) {
+        const { text, animationKey } = filterMessageContent(fullContent + chunk);
+
+        filteredContent = text;
+        fullContent = fullContent + chunk;
+
+        if (animationKey) {
+          setAnimationKey(animationKey);
+          hasSetAnimationKey = true;
+        }
+      } else {
+        filteredContent += chunk;
+      }
+
+      setStreamingMessageContent(filteredContent);
+    });
+
+    gemini.onDone(() => {
+      const assistantMessage: Message = {
+        id: crypto.randomUUID(),
+        content: filteredContent,
+        sender: "clippy",
+        createdAt: Date.now(),
+      };
+
+      addMessage(assistantMessage);
+      setStreamingMessageContent("");
+      setStatus("idle");
+    });
+
+    gemini.onError((error) => {
+      console.error("Gemini Error:", error);
+      const assistantMessage: Message = {
+        id: crypto.randomUUID(),
+        content: `Error: ${error}`,
+        sender: "clippy",
+        createdAt: Date.now(),
+      };
+      addMessage(assistantMessage);
+      setStreamingMessageContent("");
+      setStatus("idle");
+    });
   };
 
   return (

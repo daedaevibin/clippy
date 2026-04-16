@@ -12,9 +12,13 @@ import { createMainWindow, setupWindowListener } from "./windows";
 import { getModelManager } from "./models";
 import { setupAutoUpdater } from "./update";
 import { setupAppMenu } from "./menu";
+import { getStateManager } from "./state";
 
 async function onReady() {
   console.info(`Welcome to Clippy v${app.getVersion()}`);
+
+  // Set system locale
+  getStateManager().store.set("settings.locale", app.getLocale());
 
   await setupAutoUpdater();
   await loadLlm();
@@ -30,7 +34,7 @@ async function loadLlm() {
       console.info(
         `Loading model ${modelAlias} from ${getModelManager().getModelByName(modelAlias)?.path}`,
       );
-      return getModelManager().getModelByName(modelAlias)?.path;
+      return getModelManager().getModelByName(modelAlias)?.path || null;
     },
   });
 }

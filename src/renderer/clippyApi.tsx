@@ -54,6 +54,17 @@ export type ClippyApi = {
   offNewChat: () => void;
   // Clipboard
   clipboardWrite: (data: Data) => Promise<void>;
+  // Gemini
+  geminiPromptStreaming: (options: {
+    model: string;
+    messages: any[];
+    systemPrompt: string;
+    temperature: number;
+  }) => {
+    onChunk: (callback: (chunk: string) => void) => () => void;
+    onDone: (callback: () => void) => void;
+    onError: (callback: (error: string) => void) => void;
+  };
 };
 
 declare global {

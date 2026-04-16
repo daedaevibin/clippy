@@ -26,15 +26,21 @@ export const WelcomeMessageContent: React.FC = () => {
         art or satire.
       </p>
       <p>
-        This version of Clippy can run a Large Language Model (LLM) locally, so
-        that you can chat with it offline.
+        Clippy can run a Large Language Model (LLM) locally, so
+        that you can chat with it offline, or use an API-based model like Google Gemini.
       </p>
       <p>
-        It supports a variety of models, including Google's Gemma3, Meta's
-        Llama3, or Microsoft's Phi-4 Mini. We've already started downloading the
-        smallest model for you in the background. You can choose a bigger, more
-        powerful model in the settings.
+        To get started, please go to the <strong>Model Settings</strong> to choose
+        how you want to use Clippy:
       </p>
+      <ul>
+        <li>
+          <strong>Self-hosted:</strong> Download and run models like Gemma 3 or Llama 3 directly on your computer. No internet required after download!
+        </li>
+        <li>
+          <strong>API-based:</strong> Use Google's Gemini models. This requires an internet connection and a Gemini API key.
+        </li>
+      </ul>
       <p>
         By the way, you can open or close this chat window by clicking right on
         Clippy's head.

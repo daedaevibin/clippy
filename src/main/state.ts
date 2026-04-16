@@ -39,7 +39,7 @@ export class StateManager {
     if (settings.selectedModel) {
       const model = this.store.get("models")[settings.selectedModel];
 
-      if (!model || !isModelOnDisk(model)) {
+      if (!model) {
         settings.selectedModel = undefined;
       }
     }
@@ -107,11 +107,13 @@ export class StateManager {
     }
 
     if (oldValue.clippyAlwaysOnTop !== newValue.clippyAlwaysOnTop) {
-      getMainWindow()?.setAlwaysOnTop(newValue.clippyAlwaysOnTop);
+      getLogger().info(`Setting clippyAlwaysOnTop to ${newValue.clippyAlwaysOnTop}`);
+      getMainWindow()?.setAlwaysOnTop(!!newValue.clippyAlwaysOnTop, 'floating');
     }
 
     if (oldValue.chatAlwaysOnTop !== newValue.chatAlwaysOnTop) {
-      getChatWindow()?.setAlwaysOnTop(newValue.chatAlwaysOnTop);
+      getLogger().info(`Setting chatAlwaysOnTop to ${newValue.chatAlwaysOnTop}`);
+      getChatWindow()?.setAlwaysOnTop(!!newValue.chatAlwaysOnTop, 'floating');
     }
 
     if (oldValue.defaultFontSize !== newValue.defaultFontSize) {
