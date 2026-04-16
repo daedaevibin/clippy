@@ -149,6 +149,11 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 
       console.log("Loading model with options:", options);
 
+      if (settings.selectedModel?.startsWith("Gemini")) {
+        setIsModelLoaded(true);
+        return;
+      }
+
       try {
         await electronAi.create(options);
         setIsModelLoaded(true);
@@ -244,23 +249,6 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     settings.temperature,
   ]);
 
-  // If selectedModel is undefined or not available, set it to the first downloaded model
-  useEffect(() => {
-    if (
-      !settings.selectedModel ||
-      !models[settings.selectedModel] ||
-      !models[settings.selectedModel].downloaded
-    ) {
-      const downloadedModel = Object.values(models).find(
-        (model) => model.downloaded,
-      );
-
-      if (downloadedModel) {
-        clippyApi.setState("settings.selectedModel", downloadedModel.name);
-      }
-    }
-  }, [models]);
-
   // At app startup, initially load the chat records from the main process
   useEffect(() => {
     clippyApi.getChatRecords().then((chatRecords) => {
@@ -292,16 +280,6 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       sender: "clippy",
       createdAt: Date.now(),
     });
-
-    const downloadModelIfNoneReady = async () => {
-      await clippyApi.downloadModelByName("Gemma 3 (1B)");
-
-      setTimeout(async () => {
-        await clippyApi.updateModelState();
-      }, 500);
-    };
-
-    void downloadModelIfNoneReady();
   }, [models]);
 
   // Subscribe to the main process's newChat event
@@ -367,7 +345,7 @@ function getPreviewFromMessages(messages: Message[]): string {
   }
 
   // Remove newlines and limit to 100 characters
-  return messages[0].content.replace(/\n/g, " ").substring(0, 100);
+  return messages[0]?.content?.replace(/\n/g, " ").substring(0, 100) || "";
 }
 
 function messagesToInitialPrompts(messages: Message[]): LanguageModelPrompt[] {
