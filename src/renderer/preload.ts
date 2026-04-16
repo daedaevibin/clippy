@@ -99,6 +99,39 @@ const clippyApi: ClippyApi = {
   // Clipboard
   clipboardWrite: (data: Data) =>
     ipcRenderer.invoke(IpcMessages.CLIPBOARD_WRITE, data),
+
+  // Gemini
+  geminiPromptStreaming: (options: {
+    model: string;
+    messages: any[];
+    systemPrompt: string;
+    temperature: number;
+  }) => {
+    ipcRenderer.send(IpcMessages.GEMINI_PROMPT_STREAMING, options);
+
+    return {
+      onChunk: (callback: (chunk: string) => void) => {
+        const handler = (_event: any, chunk: string) => callback(chunk);
+        ipcRenderer.on(`${IpcMessages.GEMINI_PROMPT_STREAMING}_CHUNK`, handler);
+        return () =>
+          ipcRenderer.removeListener(
+            `${IpcMessages.GEMINI_PROMPT_STREAMING}_CHUNK`,
+            handler,
+          );
+      },
+      onDone: (callback: () => void) => {
+        ipcRenderer.once(`${IpcMessages.GEMINI_PROMPT_STREAMING}_DONE`, () =>
+          callback(),
+        );
+      },
+      onError: (callback: (error: string) => void) => {
+        ipcRenderer.once(
+          `${IpcMessages.GEMINI_PROMPT_STREAMING}_ERROR`,
+          (_event, error) => callback(error),
+        );
+      },
+    };
+  },
 };
 
 contextBridge.exposeInMainWorld("clippy", clippyApi);

@@ -43,4 +43,7 @@ export const IpcMessages = {
 
   // Clipboard
   CLIPBOARD_WRITE: "clippy_clipboard_write",
+
+  // Gemini
+  GEMINI_PROMPT_STREAMING: "clippy_gemini_prompt_streaming",
 };
