@@ -1,0 +1,28 @@
+pkgname=clippy
+pkgver=0.4.4
+pkgrel=1
+pkgdesc="Clippy"
+arch=('x86_64')
+url="https://github.com/daedaevibin/clippy"
+license=('MIT')
+depends=('electron' 'npm' 'typescript')
+makedepends=('npm' 'typescript')
+source=("$pkgname-$pkgver.tar.gz::https://github.com/daedaevibin/clippy/archive/v$pkgver.tar.gz")
+sha256sums=('SKIP')
+
+build() {
+  cd "$srcdir/$pkgname-$pkgver"
+  npm install
+  npm run package
+}
+
+package() {
+  cd "$srcdir/$pkgname-$pkgver"
+  install -d "$pkgdir/opt/$pkgname"
+  cp -r out/Clippy-linux-x64/* "$pkgdir/opt/$pkgname"
+  install -d "$pkgdir/usr/bin"
+  ln -s "/opt/$pkgname/Clippy" "$pkgdir/usr/bin/$pkgname"
+
+  install -d "$pkgdir/usr/share/applications"
+  install -m 644 "ARCH_LINUX/clippy.desktop" "$pkgdir/usr/share/applications/clippy.desktop"
+}
