@@ -93,3 +93,7 @@ out/
 
 trusted-signing-metadata.json
 Microsoft.Trusted.Signing.Client
+
+## AUR Packaging
+ARCH_LINUX/
+**/*.pkg.tar.zst

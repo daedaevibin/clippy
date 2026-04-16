@@ -15,7 +15,7 @@ export function Message({ message }: { message: Message }) {
   return (
     <div
       className="message"
-      style={{ display: "flex", alignItems: "flex-start" }}
+      style={{ display: "flex", alignItems: "flex-start", marginBottom: "8px" }}
     >
       <img
         src={message.sender === "user" ? questionIcon : defaultClippy}

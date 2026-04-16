@@ -103,7 +103,9 @@ export function Bubble() {
         className="window-content"
         style={currentView === "chat" ? scrollAnchoredAtBottomStyle : {}}
       >
-        {content}
+        <div className="window-body">
+          {content}
+        </div>
       </div>
     </div>
   );

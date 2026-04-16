@@ -173,19 +173,21 @@ export function Chat({ style }: ChatProps) {
 
   return (
     <div style={style} className="chat-container">
-      {messages.map((message) => (
-        <Message key={message.id} message={message} />
-      ))}
-      {status === "responding" && (
-        <Message
-          message={{
-            id: "streaming",
-            content: streamingMessageContent,
-            sender: "clippy",
-            createdAt: Date.now(),
-          }}
-        />
-      )}
+      <div className="sunken-panel" style={{ flex: 1, overflowY: "auto", marginBottom: "8px" }}>
+        {messages.map((message) => (
+          <Message key={message.id} message={message} />
+        ))}
+        {status === "responding" && (
+          <Message
+            message={{
+              id: "streaming",
+              content: streamingMessageContent,
+              sender: "clippy",
+              createdAt: Date.now(),
+            }}
+          />
+        )}
+      </div>
       <ChatInput onSend={handleSendMessage} onAbort={handleAbortMessage} />
     </div>
   );

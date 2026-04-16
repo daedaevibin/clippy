@@ -74,12 +74,10 @@ export const SettingsModel: React.FC = () => {
         Select the model you want to use for your chat. You can either <strong>self-host</strong> a model (run it locally on your machine) or use an <strong>API-based</strong> model (like Google Gemini).
       </p>
 
-      <div
-        className="sunken-panel"
-        style={{ padding: "10px", marginBottom: "15px" }}
-      >
-        <div className="field-row-stacked">
-          <label htmlFor="gemini-api-key">Gemini API Key (API-based)</label>
+      <fieldset style={{ marginBottom: "15px" }}>
+        <legend>Gemini API</legend>
+        <div className="field-row">
+          <label htmlFor="gemini-api-key">API Key:</label>
           <input
             id="gemini-api-key"
             type="password"
@@ -96,7 +94,7 @@ export const SettingsModel: React.FC = () => {
             Google AI Studio
           </a>.
         </p>
-      </div>
+      </fieldset>
 
       <div style={{ marginBottom: "10px" }}>
         <strong>Available Models:</strong>

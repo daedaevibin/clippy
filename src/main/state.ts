@@ -85,10 +85,13 @@ export class StateManager {
       if (!(model.name in models)) {
         models[model.name] = getModelManager().getManagedModelFromModel(model);
       } else {
-        models[model.name].description = model.description;
-        models[model.name].homepage = model.homepage;
-        models[model.name].size = model.size;
-        models[model.name].url = model.url;
+        // Only update built-in models, do not overwrite imported models
+        if (!models[model.name].imported) {
+          models[model.name].description = model.description;
+          models[model.name].homepage = model.homepage;
+          models[model.name].size = model.size;
+          models[model.name].url = model.url;
+        }
       }
     }
 

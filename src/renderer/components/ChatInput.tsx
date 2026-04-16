@@ -63,7 +63,7 @@ export function ChatInput({ onSend, onAbort }: ChatInputProps) {
     : "This is your chat input, we're just waiting for a model to load...";
 
   return (
-    <div style={{ display: "flex", alignItems: "flex-end" }}>
+    <div className="field-row" style={{ alignItems: "flex-end" }}>
       <textarea
         rows={1}
         ref={textareaRef}
@@ -72,12 +72,14 @@ export function ChatInput({ onSend, onAbort }: ChatInputProps) {
         disabled={!isModelLoaded}
         onKeyDown={handleKeyDown}
         placeholder={placeholder}
+        className="sunken-panel"
         style={{
           flex: 1,
           marginRight: "8px",
           resize: "vertical",
           minHeight: "23px",
           width: 80,
+          border: "2px inset #dfdfdf",
         }}
       />
       <button
