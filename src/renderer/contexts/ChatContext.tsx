@@ -262,12 +262,10 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     if (
       messages.length > 0 ||
       Object.keys(models).length === 0 ||
-      areAnyModelsReadyOrDownloading(models)
+      areAnyModelsReadyOrDownloading(models) ||
+      settings.selectedModel?.startsWith("Gemini") ||
+      hasPerformedStartupCheck
     ) {
-      return;
-    }
-
-    if (hasPerformedStartupCheck) {
       return;
     }
 
@@ -330,6 +328,7 @@ function messageRecordFromMessage(message: Message): MessageRecord {
   return {
     id: message.id,
     content: message.content,
+    thought: message.thought,
     sender: message.sender,
     createdAt: message.createdAt,
   };

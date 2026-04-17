@@ -14,11 +14,23 @@ import { checkForUpdates } from "./update";
 import { getVersions } from "./helpers/getVersions";
 import { getClippyDebugInfo } from "./debug-clippy";
 import { getDebugManager } from "./debug";
-import { GoogleGenerativeAI, Content } from "@google/generative-ai";
-import { exec } from "child_process";
+import { GoogleGenerativeAI, Content, Part, HarmCategory, HarmBlockThreshold } from "@google/generative-ai";
+import { spawn } from "child_process";
 import fs from "fs";
 import path from "path";
 import { app } from "electron";
+
+// Helper to map UI messages to Gemini Content objects
+function mapToGeminiRole(role: string): string {
+  switch (role) {
+    case "assistant":
+      return "model";
+    case "function":
+      return "function";
+    default:
+      return "user";
+  }
+}
 
 export function setupIpcListeners() {
   // Window
@@ -115,18 +127,52 @@ export function setupIpcListeners() {
         const apiKey = settings.geminiApiKey;
         if (!apiKey) {
           event.reply(
-            `${IpcMessages.GEMINI_PROMPT_STREAMING}_ERROR`,
+            IpcMessages.GEMINI_PROMPT_STREAMING_ERROR,
             "No Gemini API key found in settings.",
           );
           return;
         }
 
-        const genAI = new GoogleGenerativeAI(apiKey);
-        let modelId = "gemini-1.5-flash";
-        if (model.includes("2.0")) modelId = "gemini-2.0-flash";
-        if (model.includes("2.5")) modelId = "gemini-2.5-flash";
-        if (model.includes("3.0")) modelId = "gemini-3-flash-preview";
-        if (model.includes("3.1")) modelId = "gemini-3.1-flash-lite-preview";
+        // @ts-ignore - Some SDK versions use this to specify the API version
+        const genAI = new GoogleGenerativeAI(apiKey, { apiVersion: "v1beta" });
+
+        let modelId = "gemini-2.5-flash"; // default
+        const lowerModel = model.toLowerCase();
+
+        if (model.startsWith("gemini-")) {
+          // Use provided model ID directly
+          modelId = model;
+        } else if (lowerModel.includes("3.1")) {
+          if (lowerModel.includes("pro")) {
+            modelId = "gemini-3.1-pro-preview";
+          } else {
+            modelId = "gemini-3.1-flash-lite-preview";
+          }
+        } else if (lowerModel.includes("3.0")) {
+          if (lowerModel.includes("pro")) {
+            modelId = "gemini-3-pro-preview";
+          } else {
+            modelId = "gemini-3-flash-preview";
+          }
+        } else if (lowerModel.includes("2.5")) {
+          if (lowerModel.includes("pro")) {
+            modelId = "gemini-2.5-pro";
+          } else {
+            modelId = "gemini-2.5-flash";
+          }
+        } else if (lowerModel.includes("2.0")) {
+          if (lowerModel.includes("pro")) {
+            modelId = "gemini-2.0-pro-exp";
+          } else {
+            modelId = "gemini-2.0-flash";
+          }
+        } else if (lowerModel.includes("pro")) {
+          modelId = "gemini-3.1-pro-preview";
+        } else if (lowerModel.includes("flash")) {
+          modelId = "gemini-2.5-flash";
+        }
+
+        console.log("[IPC] Selected Gemini model ID:", modelId);
 
         const tools: any[] = [];
         let skillDescription = "";
@@ -207,104 +253,232 @@ export function setupIpcListeners() {
           tools.push({ functionDeclarations });
         }
 
+        const fullSystemPrompt = `${systemPrompt}\n\nUser system locale: ${settings.locale || "en-US"}\n\n${skillDescription}`;
+
         const geminiModel = genAI.getGenerativeModel({
           model: modelId,
-          systemInstruction: `${systemPrompt}\n\nUser system locale: ${settings.locale || "en-US"}\n\n${skillDescription}`,
+          systemInstruction: fullSystemPrompt,
           tools,
           generationConfig: {
             temperature: temperature || 0.7,
           },
+          safetySettings: [
+            {
+              category: HarmCategory.HARM_CATEGORY_HARASSMENT,
+              threshold: HarmBlockThreshold.BLOCK_NONE,
+            },
+            {
+              category: HarmCategory.HARM_CATEGORY_HATE_SPEECH,
+              threshold: HarmBlockThreshold.BLOCK_NONE,
+            },
+            {
+              category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
+              threshold: HarmBlockThreshold.BLOCK_NONE,
+            },
+            {
+              category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
+              threshold: HarmBlockThreshold.BLOCK_NONE,
+            },
+          ],
         });
 
-        // 1. Systematically rebuild explicit history array
-        const contents: Content[] = [];
+        // Map messages to Gemini history and filter out empty ones
+        const mappedHistory: Content[] = [];
         for (const m of messages) {
-          const role = m.role === "assistant" ? "model" : "user";
-          const text = m.content ? String(m.content).trim() : "";
-          if (!text) continue;
+          const role = mapToGeminiRole(m.role || (m.sender === "clippy" ? "assistant" : "user"));
+          const parts: Part[] = [];
 
-          // Collapse consecutive roles to satisfy Gemini's strict alternation requirements
-          if (contents.length > 0 && contents[contents.length - 1].role === role) {
-            contents[contents.length - 1].parts[0].text += `\n${text}`;
+          if (m.content) {
+            parts.push({ text: String(m.content).trim() });
+          }
+
+          if (m.toolCalls && m.toolCalls.length > 0) {
+            for (const call of m.toolCalls) {
+              parts.push({
+                functionCall: {
+                  name: call.name,
+                  args: call.args,
+                },
+              });
+            }
+          }
+
+          if (parts.length > 0) {
+            mappedHistory.push({ role, parts });
+          }
+
+          if (m.toolResults && m.toolResults.length > 0) {
+            const resultParts: Part[] = [];
+            for (const res of m.toolResults) {
+              resultParts.push({
+                functionResponse: {
+                  name: res.name,
+                  response: { result: String(res.result) },
+                },
+              });
+            }
+            mappedHistory.push({ role: "function", parts: resultParts });
+          }
+        }
+
+        if (mappedHistory.length === 0) {
+          event.reply(IpcMessages.GEMINI_PROMPT_STREAMING_DONE);
+          return;
+        }
+
+        // 1. Ensure the first message is 'user'. Gemini requires history to start with a user message.
+        while (mappedHistory.length > 0 && mappedHistory[0].role !== "user") {
+          mappedHistory.shift();
+        }
+
+        if (mappedHistory.length === 0) {
+          event.reply(IpcMessages.GEMINI_PROMPT_STREAMING_DONE);
+          return;
+        }
+
+        // 2. Ensure alternating roles by merging consecutive messages with the same role
+        const consolidatedHistory: Content[] = [];
+        for (const content of mappedHistory) {
+          if (consolidatedHistory.length > 0 && consolidatedHistory[consolidatedHistory.length - 1].role === content.role) {
+            consolidatedHistory[consolidatedHistory.length - 1].parts.push(...content.parts);
           } else {
-            contents.push({ role, parts: [{ text }] });
+            consolidatedHistory.push(content);
           }
         }
 
-        if (contents.length === 0) return;
-
-        // Gemini strictly requires the first turn to be 'user'
-        if (contents[0].role !== "user") {
-          contents.unshift({ role: "user", parts: [{ text: "(System UI Initialization)" }] });
+        // 3. Take the last message as the current prompt
+        const lastMessage = consolidatedHistory.pop();
+        if (
+          !lastMessage ||
+          !lastMessage.parts[0] ||
+          !("text" in lastMessage.parts[0])
+        ) {
+          event.reply(IpcMessages.GEMINI_PROMPT_STREAMING_DONE);
+          return;
         }
 
-        // 2. Perform stateless stream request
-        let result = await geminiModel.generateContentStream({ contents });
+        const history: Content[] = consolidatedHistory;
+        let currentParts: Part[] = lastMessage.parts;
 
-        for await (const chunk of result.stream) {
-          const chunkText = chunk.text();
-          if (chunkText) {
-            event.reply(`${IpcMessages.GEMINI_PROMPT_STREAMING}_CHUNK`, chunkText);
+        // Automatic Multi-round Tool Execution
+        let isDone = false;
+        let round = 1;
+        while (!isDone) {
+          const contents = [...history];
+          if (currentParts.length > 0) {
+            contents.push({ role: "user", parts: currentParts });
           }
-        }
 
-        const finalResponse = await result.response;
-        const calls = finalResponse.functionCalls();
+          const result = await geminiModel.generateContentStream({
+            contents,
+          });
 
-        // 3. Handle Tool Execution
-        if (calls && calls.length > 0) {
-          // Extract the exact parts (including functionCall metadata) the model just generated
-          const modelParts = finalResponse.candidates?.[0]?.content?.parts || [];
+          let accumulatedText = "";
+          let accumulatedThought = "";
+          const accumulatedParts: Part[] = [];
 
-          // Manually slot the model's output into our state tree
-          contents.push({ role: "model", parts: modelParts });
-
-          const functionResponses: any[] = [];
-
-          for (const call of calls) {
-            const { name, args } = call;
-            let responseStr = "";
-            const anyArgs = args as any;
-
-            try {
-              if (name === "execute_command") {
-                responseStr = await handleExecuteCommand(anyArgs.command);
-              } else if (name === "read_file") {
-                responseStr = await handleReadFile(anyArgs.path);
-              } else if (name === "write_file") {
-                responseStr = await handleWriteFile(anyArgs.path, anyArgs.content);
-              } else if (name === "list_files") {
-                responseStr = await handleListFiles(anyArgs.path);
-              } else {
-                responseStr = `Error: Unknown tool ${name}`;
+          for await (const chunk of result.stream) {
+            if (chunk.candidates?.[0]?.content?.parts) {
+              for (const part of chunk.candidates[0].content.parts) {
+                accumulatedParts.push(part);
+                if ("text" in part && part.text) {
+                  accumulatedText += part.text;
+                  event.reply(
+                    IpcMessages.GEMINI_PROMPT_STREAMING_CHUNK,
+                    part.text,
+                  );
+                }
+                if ("thought" in part && (part as any).thought) {
+                  accumulatedThought += (part as any).thought;
+                  event.reply(
+                    IpcMessages.GEMINI_PROMPT_STREAMING_THOUGHT,
+                    (part as any).thought,
+                  );
+                }
               }
-            } catch (e: any) {
-              responseStr = `Error executing tool: ${e.message}`;
+            } else if (chunk.candidates?.[0]?.finishReason) {
+              if (chunk.candidates[0].finishReason === "SAFETY") {
+              }
             }
-
-            functionResponses.push({
-              functionResponse: {
-                name,
-                response: { name, content: String(responseStr) },
-              },
-            });
           }
 
-          // Append our execution results as the user turn
-          contents.push({ role: "user", parts: functionResponses });
+          // Add the turns to history
+          if (currentParts.length > 0) {
+            history.push({ role: "user", parts: currentParts });
+          }
+          history.push({ role: "model", parts: accumulatedParts });
 
-          // 4. Stream the follow-up response back to the UI
-          const nextResult = await geminiModel.generateContentStream({ contents });
+          const response = await result.response;
+          const calls = response.functionCalls();
 
-          for await (const chunk of nextResult.stream) {
-            const chunkText = chunk.text();
-            if (chunkText) {
-              event.reply(`${IpcMessages.GEMINI_PROMPT_STREAMING}_CHUNK`, chunkText);
+          if (!accumulatedText && !accumulatedThought && (!calls || calls.length === 0)) {
+            event.reply(
+              IpcMessages.GEMINI_PROMPT_STREAMING_CHUNK,
+              "No response received from Gemini.",
+            );
+          }
+
+          if (calls && calls.length > 0) {
+            const functionResponses: Part[] = [];
+
+            for (const call of calls) {
+              const { name, args } = call;
+              const anyArgs = args as any;
+              let responseStr = "";
+
+              event.reply(IpcMessages.GEMINI_PROMPT_STREAMING_TOOL_CALL, { name, args: anyArgs });
+
+              try {
+                switch (name) {
+                  case "execute_command":
+                    responseStr = await handleExecuteCommand(anyArgs.command);
+                    break;
+                  case "read_file":
+                    responseStr = await handleReadFile(anyArgs.path);
+                    break;
+                  case "write_file":
+                    responseStr = await handleWriteFile(
+                      anyArgs.path,
+                      anyArgs.content,
+                    );
+                    break;
+                  case "list_files":
+                    responseStr = await handleListFiles(anyArgs.path);
+                    break;
+                  default:
+                    responseStr = `Error: Unknown tool ${name}`;
+                }
+              } catch (e: any) {
+                responseStr = `Error executing tool: ${e.message}`;
+              }
+
+              event.reply(IpcMessages.GEMINI_PROMPT_STREAMING_TOOL_RESULT, { name, result: responseStr });
+
+              functionResponses.push({
+                functionResponse: {
+                  name,
+                  response: { result: String(responseStr) },
+                },
+              });
             }
+
+            // For the next round, the "user" parts will actually be the function responses
+            // In Gemini history, function responses have role "function"
+            // So we add them to history and then call generateContentStream
+            history.push({ role: "function", parts: functionResponses });
+
+            // To continue the loop, we need to provide a new turn.
+            // Since we already added the function response to history,
+            // we can just pass an empty parts array for the next round? No.
+            // Actually, the next call should just have the history.
+            currentParts = []; // The actual content is already in history
+            round++;
+          } else {
+            isDone = true;
           }
         }
 
-        event.reply(`${IpcMessages.GEMINI_PROMPT_STREAMING}_DONE`);
+        event.reply(IpcMessages.GEMINI_PROMPT_STREAMING_DONE);
       } catch (error: any) {
         let errorMessage = "Unknown Gemini error";
 
@@ -327,11 +501,7 @@ export function setupIpcListeners() {
           errorMessage = String(error);
         }
 
-        console.error("Gemini Error:", error);
-        event.reply(
-          `${IpcMessages.GEMINI_PROMPT_STREAMING}_ERROR`,
-          errorMessage,
-        );
+        event.reply(IpcMessages.GEMINI_PROMPT_STREAMING_ERROR, errorMessage);
       }
     },
   );
@@ -346,16 +516,31 @@ async function handleExecuteCommand(command: string): Promise<string> {
     return "Error: Terminal access is disabled in settings.";
   }
 
-  // Force use of /bin/bash -c
-  const bashCommand = `/bin/bash -c "${command.replace(/"/g, '\\"')}"`;
-
   return new Promise((resolve) => {
-    exec(bashCommand, (error, stdout, stderr) => {
-      if (error) {
-        resolve(`Error: ${error.message}\n${stderr}`);
+    const child = spawn("/bin/bash", ["-c", command]);
+    let stdout = "";
+    let stderr = "";
+
+    child.stdout.on("data", (data) => {
+      stdout += data.toString();
+    });
+
+    child.stderr.on("data", (data) => {
+      stderr += data.toString();
+    });
+
+    child.on("close", (code) => {
+      if (code !== 0) {
+        resolve(`Error (exit code ${code}): ${stderr || stdout}`);
       } else {
-        resolve(stdout || stderr || "Command executed successfully (no output).");
+        resolve(
+          stdout || stderr || "Command executed successfully (no output).",
+        );
       }
+    });
+
+    child.on("error", (err) => {
+      resolve(`Error: ${err.message}`);
     });
   });
 }
@@ -428,3 +613,4 @@ async function handleListFiles(dirPath: string): Promise<string> {
     return `Error listing files: ${error.message}`;
   }
 }
+

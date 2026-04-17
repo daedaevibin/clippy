@@ -16,12 +16,17 @@
 
 ::-webkit-scrollbar-track {
   background: #dfdfdf;
-  box-shadow: inset 1px 1px 0 #fff, inset -1px -1px 0 #808080;
+  box-shadow:
+    inset 1px 1px 0 #fff,
+    inset -1px -1px 0 #808080;
 }
 
 ::-webkit-scrollbar-thumb {
   background: #dfdfdf;
-  box-shadow: inset 1px 1px 0 #fff, inset -1px -1px 0 #808080, 1px 1px 0 #000;
+  box-shadow:
+    inset 1px 1px 0 #fff,
+    inset -1px -1px 0 #808080,
+    1px 1px 0 #000;
 }
 
 table > tbody > tr > * {

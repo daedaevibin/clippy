@@ -1,8 +1,21 @@
+export interface ToolCall {
+  name: string;
+  args: any;
+}
+
+export interface ToolResult {
+  name: string;
+  result: any;
+}
+
 export interface MessageRecord {
   id: string;
   content?: string;
+  thought?: string;
   sender: "user" | "clippy";
   createdAt: number;
+  toolCalls?: ToolCall[];
+  toolResults?: ToolResult[];
 }
 
 export interface ChatRecord {

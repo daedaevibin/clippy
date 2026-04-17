@@ -71,7 +71,9 @@ export const SettingsModel: React.FC = () => {
   return (
     <div>
       <p>
-        Select the model you want to use for your chat. You can either <strong>self-host</strong> a model (run it locally on your machine) or use an <strong>API-based</strong> model (like Google Gemini).
+        Select the model you want to use for your chat. You can either{" "}
+        <strong>self-host</strong> a model (run it locally on your machine) or
+        use an <strong>API-based</strong> model (like Google Gemini).
       </p>
 
       <fieldset style={{ marginBottom: "15px" }}>
@@ -92,7 +94,8 @@ export const SettingsModel: React.FC = () => {
           Required for Gemini models. You can get a key from the{" "}
           <a href="https://aistudio.google.com/" target="_blank">
             Google AI Studio
-          </a>.
+          </a>
+          .
         </p>
       </fieldset>
 
@@ -136,7 +139,8 @@ export const SettingsModel: React.FC = () => {
           )}
 
           <div style={{ marginTop: "15px", display: "flex", gap: "10px" }}>
-            {!selectedModel.downloaded && !selectedModel.name.startsWith("Gemini") ? (
+            {!selectedModel.downloaded &&
+            !selectedModel.name.startsWith("Gemini") ? (
               <button disabled={isDownloading} onClick={handleDownload}>
                 Download Model
               </button>

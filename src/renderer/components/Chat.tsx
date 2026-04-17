@@ -17,6 +17,10 @@ export function Chat({ style }: ChatProps) {
   const { settings } = useSharedState();
   const [streamingMessageContent, setStreamingMessageContent] =
     useState<string>("");
+  const [streamingThoughtContent, setStreamingThoughtContent] =
+    useState<string>("");
+  const [streamingToolCalls, setStreamingToolCalls] = useState<any[]>([]);
+  const [streamingToolResults, setStreamingToolResults] = useState<any[]>([]);
   const [lastRequestUUID, setLastRequestUUID] = useState<string>(
     crypto.randomUUID(),
   );
@@ -107,58 +111,109 @@ export function Chat({ style }: ChatProps) {
   const handleGeminiSendMessage = (message: string) => {
     let fullContent = "";
     let filteredContent = "";
-    let hasSetAnimationKey = false;
+    let fullThought = "";
+    const toolCalls: any[] = [];
+    const toolResults: any[] = [];
+
+    const allMessages = [
+      ...messages.map((m) => ({
+        role: m.sender === "clippy" ? "assistant" : "user",
+        content: m.content,
+      })),
+      { role: "user" as const, content: message },
+    ];
 
     const gemini = clippyApi.geminiPromptStreaming({
-      model: settings.selectedModel || "Gemini 2.0 Flash",
-      messages: [
-        ...messages.map((m) => ({
-          role: m.sender === "clippy" ? "assistant" : "user",
-          content: m.content,
-        })),
-        { role: "user", content: message },
-      ],
+      model: settings.selectedModel || "Gemini 2.5 Flash",
+      messages: allMessages,
       systemPrompt: settings.systemPrompt || "",
       temperature: settings.temperature || 0.7,
     });
 
-    gemini.onChunk((chunk) => {
-      if (fullContent === "") {
+    const unsubThought = gemini.onThought((thought) => {
+      if (fullContent === "" && fullThought === "") {
+        setStatus("responding");
+      }
+      fullThought += thought;
+      setStreamingThoughtContent(fullThought);
+    });
+
+    const unsubChunk = gemini.onChunk((chunk) => {
+      if (fullContent === "" && fullThought === "") {
         setStatus("responding");
       }
 
-      if (!hasSetAnimationKey) {
-        const { text, animationKey } = filterMessageContent(fullContent + chunk);
+      fullContent += chunk;
 
-        filteredContent = text;
-        fullContent = fullContent + chunk;
-
-        if (animationKey) {
-          setAnimationKey(animationKey);
-          hasSetAnimationKey = true;
+      // Scan for animations [Key]
+      let scanText = fullContent;
+      for (const key of ANIMATION_KEYS_BRACKETS) {
+        if (scanText.includes(key)) {
+          const keyName = key.slice(1, -1);
+          setAnimationKey(keyName);
+          // Remove all occurrences of the animation tag from the display text
+          scanText = scanText.split(key).join("");
         }
-      } else {
-        filteredContent += chunk;
       }
 
-      setStreamingMessageContent(filteredContent);
+      // Handle partial tags at the end of the content (e.g. "[Wav")
+      // by not showing them yet
+      let displayText = scanText;
+      const lastOpenBracket = displayText.lastIndexOf("[");
+      if (lastOpenBracket !== -1 && !displayText.includes("]", lastOpenBracket)) {
+        displayText = displayText.substring(0, lastOpenBracket);
+      }
+
+      setStreamingMessageContent(displayText.trimStart());
+      filteredContent = displayText.trimStart();
     });
 
+    const unsubToolCall = gemini.onToolCall((toolCall) => {
+      setStatus("responding");
+      toolCalls.push(toolCall);
+      setStreamingToolCalls([...toolCalls]);
+    });
+
+    const unsubToolResult = gemini.onToolResult((toolResult) => {
+      toolResults.push(toolResult);
+      setStreamingToolResults([...toolResults]);
+    });
+
+    const cleanup = () => {
+      unsubThought();
+      unsubChunk();
+      unsubToolCall();
+      unsubToolResult();
+    };
+
     gemini.onDone(() => {
+      cleanup();
+
+      let finalContent = filteredContent;
+      if (!finalContent && !fullThought && toolCalls.length === 0) {
+        finalContent = "No response received from Gemini.";
+      }
+
       const assistantMessage: Message = {
         id: crypto.randomUUID(),
-        content: filteredContent,
+        content: finalContent,
+        thought: fullThought,
+        toolCalls: [...toolCalls],
+        toolResults: [...toolResults],
         sender: "clippy",
         createdAt: Date.now(),
       };
 
       addMessage(assistantMessage);
       setStreamingMessageContent("");
+      setStreamingThoughtContent("");
+      setStreamingToolCalls([]);
+      setStreamingToolResults([]);
       setStatus("idle");
     });
 
     gemini.onError((error) => {
-      console.error("Gemini Error:", error);
+      cleanup();
       const assistantMessage: Message = {
         id: crypto.randomUUID(),
         content: `Error: ${error}`,
@@ -167,13 +222,19 @@ export function Chat({ style }: ChatProps) {
       };
       addMessage(assistantMessage);
       setStreamingMessageContent("");
+      setStreamingThoughtContent("");
+      setStreamingToolCalls([]);
+      setStreamingToolResults([]);
       setStatus("idle");
     });
   };
 
   return (
     <div style={style} className="chat-container">
-      <div className="sunken-panel" style={{ flex: 1, overflowY: "auto", marginBottom: "8px" }}>
+      <div
+        className="sunken-panel"
+        style={{ flex: 1, overflowY: "auto", marginBottom: "8px" }}
+      >
         {messages.map((message) => (
           <Message key={message.id} message={message} />
         ))}
@@ -182,6 +243,9 @@ export function Chat({ style }: ChatProps) {
             message={{
               id: "streaming",
               content: streamingMessageContent,
+              thought: streamingThoughtContent,
+              toolCalls: streamingToolCalls,
+              toolResults: streamingToolResults,
               sender: "clippy",
               createdAt: Date.now(),
             }}

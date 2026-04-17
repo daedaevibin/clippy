@@ -75,7 +75,8 @@ export const SettingsSkills: React.FC = () => {
           />
         </div>
         <p style={{ fontSize: "11px", color: "#666", marginTop: "5px" }}>
-          By default, file access is restricted to your user directory if root access is disabled.
+          By default, file access is restricted to your user directory if root
+          access is disabled.
         </p>
       </fieldset>
     </div>

@@ -62,6 +62,9 @@ export type ClippyApi = {
     temperature: number;
   }) => {
     onChunk: (callback: (chunk: string) => void) => () => void;
+    onThought: (callback: (thought: string) => void) => () => void;
+    onToolCall: (callback: (toolCall: { name: string; args: any }) => void) => () => void;
+    onToolResult: (callback: (toolResult: { name: string; result: any }) => void) => () => void;
     onDone: (callback: () => void) => void;
     onError: (callback: (error: string) => void) => void;
   };

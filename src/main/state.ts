@@ -110,13 +110,17 @@ export class StateManager {
     }
 
     if (oldValue.clippyAlwaysOnTop !== newValue.clippyAlwaysOnTop) {
-      getLogger().info(`Setting clippyAlwaysOnTop to ${newValue.clippyAlwaysOnTop}`);
-      getMainWindow()?.setAlwaysOnTop(!!newValue.clippyAlwaysOnTop, 'floating');
+      getLogger().info(
+        `Setting clippyAlwaysOnTop to ${newValue.clippyAlwaysOnTop}`,
+      );
+      getMainWindow()?.setAlwaysOnTop(!!newValue.clippyAlwaysOnTop, "floating");
     }
 
     if (oldValue.chatAlwaysOnTop !== newValue.chatAlwaysOnTop) {
-      getLogger().info(`Setting chatAlwaysOnTop to ${newValue.chatAlwaysOnTop}`);
-      getChatWindow()?.setAlwaysOnTop(!!newValue.chatAlwaysOnTop, 'floating');
+      getLogger().info(
+        `Setting chatAlwaysOnTop to ${newValue.chatAlwaysOnTop}`,
+      );
+      getChatWindow()?.setAlwaysOnTop(!!newValue.chatAlwaysOnTop, "floating");
     }
 
     if (oldValue.defaultFontSize !== newValue.defaultFontSize) {

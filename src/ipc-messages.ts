@@ -46,4 +46,10 @@ export const IpcMessages = {
 
   // Gemini
   GEMINI_PROMPT_STREAMING: "clippy_gemini_prompt_streaming",
+  GEMINI_PROMPT_STREAMING_CHUNK: "clippy_gemini_prompt_streaming_CHUNK",
+  GEMINI_PROMPT_STREAMING_THOUGHT: "clippy_gemini_prompt_streaming_THOUGHT",
+  GEMINI_PROMPT_STREAMING_DONE: "clippy_gemini_prompt_streaming_DONE",
+  GEMINI_PROMPT_STREAMING_ERROR: "clippy_gemini_prompt_streaming_ERROR",
+  GEMINI_PROMPT_STREAMING_TOOL_CALL: "clippy_gemini_prompt_streaming_TOOL_CALL",
+  GEMINI_PROMPT_STREAMING_TOOL_RESULT: "clippy_gemini_prompt_streaming_TOOL_RESULT",
 };

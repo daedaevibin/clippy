@@ -45,7 +45,11 @@ export function TabList({ tabs, activeTab, onTabChange }: TabListProps) {
           </li>
         ))}
       </menu>
-      <div role="tabpanel" className="sunken-panel" style={{ height: "calc(100% - 40px)", overflowY: "auto" }}>
+      <div
+        role="tabpanel"
+        className="sunken-panel"
+        style={{ height: "calc(100% - 40px)", overflowY: "auto" }}
+      >
         {tabs[activeTabIndex]?.content}
       </div>
     </div>

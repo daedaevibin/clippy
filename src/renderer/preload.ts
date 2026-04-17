@@ -111,23 +111,60 @@ const clippyApi: ClippyApi = {
 
     return {
       onChunk: (callback: (chunk: string) => void) => {
-        const handler = (_event: any, chunk: string) => callback(chunk);
-        ipcRenderer.on(`${IpcMessages.GEMINI_PROMPT_STREAMING}_CHUNK`, handler);
+        const handler = (_event: any, chunk: string) => {
+          callback(chunk);
+        };
+        ipcRenderer.on(IpcMessages.GEMINI_PROMPT_STREAMING_CHUNK, handler);
         return () =>
           ipcRenderer.removeListener(
-            `${IpcMessages.GEMINI_PROMPT_STREAMING}_CHUNK`,
+            IpcMessages.GEMINI_PROMPT_STREAMING_CHUNK,
+            handler,
+          );
+      },
+      onThought: (callback: (thought: string) => void) => {
+        const handler = (_event: any, thought: string) => {
+          callback(thought);
+        };
+        ipcRenderer.on(IpcMessages.GEMINI_PROMPT_STREAMING_THOUGHT, handler);
+        return () =>
+          ipcRenderer.removeListener(
+            IpcMessages.GEMINI_PROMPT_STREAMING_THOUGHT,
+            handler,
+          );
+      },
+      onToolCall: (callback: (toolCall: { name: string; args: any }) => void) => {
+        const handler = (_event: any, toolCall: { name: string; args: any }) => {
+          callback(toolCall);
+        };
+        ipcRenderer.on(IpcMessages.GEMINI_PROMPT_STREAMING_TOOL_CALL, handler);
+        return () =>
+          ipcRenderer.removeListener(
+            IpcMessages.GEMINI_PROMPT_STREAMING_TOOL_CALL,
+            handler,
+          );
+      },
+      onToolResult: (callback: (toolResult: { name: string; result: any }) => void) => {
+        const handler = (_event: any, toolResult: { name: string; result: any }) => {
+          callback(toolResult);
+        };
+        ipcRenderer.on(IpcMessages.GEMINI_PROMPT_STREAMING_TOOL_RESULT, handler);
+        return () =>
+          ipcRenderer.removeListener(
+            IpcMessages.GEMINI_PROMPT_STREAMING_TOOL_RESULT,
             handler,
           );
       },
       onDone: (callback: () => void) => {
-        ipcRenderer.once(`${IpcMessages.GEMINI_PROMPT_STREAMING}_DONE`, () =>
-          callback(),
-        );
+        ipcRenderer.once(IpcMessages.GEMINI_PROMPT_STREAMING_DONE, () => {
+          callback();
+        });
       },
       onError: (callback: (error: string) => void) => {
         ipcRenderer.once(
-          `${IpcMessages.GEMINI_PROMPT_STREAMING}_ERROR`,
-          (_event, error) => callback(error),
+          IpcMessages.GEMINI_PROMPT_STREAMING_ERROR,
+          (_event, error) => {
+            callback(error);
+          },
         );
       },
     };

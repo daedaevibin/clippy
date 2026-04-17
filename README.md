@@ -8,6 +8,10 @@ It is also meant to be a reference implementation of [@electron/llm](https://git
 
 ## Features
 
+- Support for modern Gemini models (2.0, 2.5, 3.0, 3.1).
+- "Thinking" (reasoning) capabilities for complex tasks.
+- Improved tool-calling transparency with visible tool execution indicators.
+- Hardened security for local operations.
 - Simple, familiar, and classic chat interface. Send messages to your models, get a response.
 - Batteries included: No complicated setup. Just open the app and chat away. Thanks to llama.cpp and `node-llama-cpp`, the app will automatically discover the most efficient way to run your models (Metal, CUDA, Vulkan, etc).
 - Custom models, prompts, and parameters: Load your own downloaded models and play with the settings.
