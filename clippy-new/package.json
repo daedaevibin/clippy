@@ -1,0 +1,52 @@
+{
+  "name": "clippy-new",
+  "productName": "clippy-new",
+  "version": "1.0.0",
+  "description": "My Electron application description",
+  "main": ".vite/build/main.js",
+  "scripts": {
+    "start": "electron-forge start",
+    "package": "electron-forge package",
+    "make": "electron-forge make",
+    "publish": "electron-forge publish",
+    "lint": "prettier --write --ext .ts,.tsx .",
+    "extract-animations": "./tools/extract-animations.sh -j ./assets/animations/clippy/animations.json -s ./assets/animations/clippy/map.png -o src/renderer/images/animations"
+  },
+  "keywords": [],
+  "author": {
+    "name": "Dae Euhwa",
+    "email": "daedaevibin@ik.me"
+  },
+  "license": "OLS-3.0",
+  "dependencies": {
+    "@electron/llm": "^1.1.1",
+    "@google/generative-ai": "^0.24.1",
+    "98.css": "^0.1.21",
+    "date-fns": "^4.1.0",
+    "electron-context-menu": "^4.1.2",
+    "electron-log": "^5.4.3",
+    "electron-store": "^11.0.2",
+    "react-markdown": "^10.1.0"
+  },
+  "devDependencies": {
+    "@electron-forge/cli": "^7.4.0",
+    "@electron-forge/maker-deb": "^7.4.0",
+    "@electron-forge/maker-rpm": "^7.4.0",
+    "@electron-forge/plugin-auto-unpack-natives": "^7.4.0",
+    "@electron-forge/plugin-vite": "^7.4.0",
+    "@types/react": "^18.2.79",
+    "@types/react-dom": "^18.2.25",
+    "@typescript-eslint/eslint-plugin": "^7.7.0",
+    "@typescript-eslint/parser": "^7.7.0",
+    "electron": "30.0.1",
+    "eslint": "^8.57.0",
+    "eslint-plugin-import": "^2.29.1",
+    "eslint-plugin-react-hooks": "^4.6.0",
+    "prettier": "3.5.3",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "ts-node": "^10.9.2",
+    "typescript": "~5.4.5",
+    "vite": "^5.2.8"
+  }
+}
